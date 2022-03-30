@@ -178,64 +178,28 @@ def plot_feature(features, data_x=None):
 
 def plot_feature_space(X, y, features, dims=[0, 1, 2]):
     names = np.unique(y)
-    if isinstance(X, np.ndarray) and X.ndim == 2 and X.shape[-1] == x.shape[-1]:
-        if X.shape[1] == 2:
-            print('burp')
-            return 'burp'
-        """
-            fig = plt.figure()
-            ax = fig.add_subplot(projection='3d')
-            ax.scatter(func[0](data_ordre0_LED5), func[1](data_ordre0_LED5), c='blue')
-            ax.scatter(func[0](data_ordre0_LED9), func[1](data_ordre0_LED9), c='red')
-            ax.scatter(func[0](data_ordre0_INC5), func[1](data_ordre0_INC5), c='green')
-            ax.scatter(func[0](data_ordre0_INC9), func[1](data_ordre0_INC9), c='orange')
-            if data_x is None:
-                plt.legend(['LED5', 'LED9', 'INC5', 'INC9'])
-            else:
-                ax.scatter(func[0](data_x), func[1](data_x), marker='x', color='k')
-                plt.legend(['LED5', 'LED9', 'INC5', 'INC9', 'data_x'])
-            ax.set_xlabel(func[0].__name__)
-            ax.set_ylabel(func[1].__name__)
-        """
-        colors = ['b', 'r', 'g', 'orange', 'k']
-        markers = ['o', 'o', 'o', 'o', 'x']
-        """
-        colors_list = ['b', 'r', 'g', 'm']
-        if names.shape[0] > 4:
-            print('burp')
-            return 'burp'
-        colors = {name:colors_list[i] for i, name in enumerate(names)}
-        markers = {if name == 'data_x': name:colors_list[i] for i, name in enumerate(names)}
-"""
-        fig = plt.figure()
-        ax = fig.add_subplot(projection='3d')
+    colors = ['b', 'r', 'g', 'orange', 'k']
+    markers = ['o', 'o', 'o', 'o', 'x']
 
-        for i, name in enumerate(names):
-            ax.scatter(X[y == name, dims[0]], X[y == name, dims[1]], X[y == name, dims[2]], marker=markers[i], color=colors[i])
+    if isinstance(X, np.ndarray) and X.ndim == 2 and X.shape[-1] == x.shape[-1]:
+        fig = plt.figure()
+
+        if X.shape[1] == 2:
+            for i, name in enumerate(names):
+                plt.scatter(X[y == name, 0], X[y == name, 1], marker=markers[i],color=colors[i])
+        else:
+            for i, name in enumerate(names):
+                ax = fig.add_subplot(projection='3d')
+                ax.scatter(X[y == name, dims[0]], X[y == name, dims[1]], X[y == name, dims[2]], marker=markers[i], color=colors[i])
+                ax.set_zlabel(features[dims[2]].__name__)
 
         plt.legend(names)
-        ax.set_xlabel(features[dims[0]].__name__)
-        ax.set_ylabel(features[dims[1]].__name__)
-        ax.set_zlabel(features[dims[2]].__name__)
+        plt.xlabel(features[dims[0]].__name__)
+        plt.ylabel(features[dims[1]].__name__)
         plt.show()
     else:
         print('burp')
         return 'burp'
-    """
-        fig = plt.figure()
-        plt.scatter(range(len(data_ordre0_LED5)), func(data_ordre0_LED5), c='blue')
-        plt.scatter(range(len(data_ordre0_LED9)), func(data_ordre0_LED9), c='red')
-        plt.scatter(range(len(data_ordre0_INC5)), func(data_ordre0_INC5), c='green')
-        plt.scatter(range(len(data_ordre0_INC9)), func(data_ordre0_INC9), c='orange')
-        if data_x is None:
-            plt.legend(['LED5', 'LED9', 'INC5', 'INC9'])
-        else:
-            plt.scatter(range(len(data_x)), func(data_x), marker='x', color='k')
-            plt.legend(['LED5', 'LED9', 'INC5', 'INC9', 'data_x'])
-        plt.xlabel('data')
-        plt.ylabel(func.__name__)
-        plt.show()
-    """
 
 
 def knn(X, x, y, k=2):
@@ -253,7 +217,7 @@ def knn(X, x, y, k=2):
 
 data = getdata()
 data_x = data[0]
-features = [calcul_moyenne, calcul_var, calcul_conv]
+features = [calcul_moyenne, calcul_var]#, calcul_conv]
 
 plot_images()
 plot_proj()
