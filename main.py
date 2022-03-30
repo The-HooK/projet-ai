@@ -188,10 +188,10 @@ def plot_feature_space(X, y, features, dims=[0, 1, 2]):
             for i, name in enumerate(names):
                 plt.scatter(X[y == name, 0], X[y == name, 1], marker=markers[i],color=colors[i])
         else:
+            ax = fig.add_subplot(projection='3d')
+            ax.set_zlabel(features[dims[2]].__name__)
             for i, name in enumerate(names):
-                ax = fig.add_subplot(projection='3d')
                 ax.scatter(X[y == name, dims[0]], X[y == name, dims[1]], X[y == name, dims[2]], marker=markers[i], color=colors[i])
-                ax.set_zlabel(features[dims[2]].__name__)
 
         plt.legend(names)
         plt.xlabel(features[dims[0]].__name__)
@@ -217,7 +217,7 @@ def knn(X, x, y, k=2):
 
 data = getdata()
 data_x = data[0]
-features = [calcul_moyenne, calcul_var]#, calcul_conv]
+features = [calcul_moyenne, calcul_var, calcul_conv]
 
 plot_images()
 plot_proj()
