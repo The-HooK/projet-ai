@@ -1,14 +1,8 @@
-import os
-import sys
-import random
-import warnings
-
-import img as img
 import numpy as np
-import cv2
 import matplotlib.pyplot as plt
-import matplotlib.image as mpimg
-from sklearn.neighbors import KNeighborsClassifier
+
+# from skimage import feature
+# from sklearn.neighbors import KNeighborsClassifier
 
 from mahotas import euler
 from skimage.io import imread, imread_collection, concatenate_images
@@ -16,10 +10,10 @@ from skimage.color import rgb2gray
 
 
 def getdata():
-    global data_LED5
-    global data_LED9
-    global data_INC5
-    global data_INC9
+    # global data_LED5
+    # global data_LED9
+    # global data_INC5
+    # global data_INC9
     data_LED5 = []
     data_LED9 = []
     data_INC5 = []
@@ -89,6 +83,14 @@ def calcul_projection(image):
         return sum(image)
 
 
+def calcul_barycentre(image):
+    proj = calcul_projection(image)
+    if isinstance(image, list):
+        return [sum(range(len(p)) * p) / len(p) for p in proj]
+    else:
+        return sum(range(len(proj)) * proj) / len(proj)
+
+
 def plot_images():
     # album_LED5 = np.concatenate(np.array([data_ordre0_LED5]).reshape((4,2)))
     names = ['LED5', 'LED9', 'INC5', 'INC9']
@@ -144,93 +146,110 @@ def plot_proj():
     plt.title("Projection sur l'axe vertical")
 
 
-def plot_feature(features, data_x=None):
-    if isinstance(features, list):
-        for func in features:
-            fig = plt.figure()
-            plt.scatter(range(len(data_ordre0_LED5)), func(data_ordre0_LED5), c='blue')
-            plt.scatter(range(len(data_ordre0_LED9)), func(data_ordre0_LED9), c='red')
-            plt.scatter(range(len(data_ordre0_INC5)), func(data_ordre0_INC5), c='green')
-            plt.scatter(range(len(data_ordre0_INC9)), func(data_ordre0_INC9), c='orange')
-            if data_x is None:
-                plt.legend(['LED5', 'LED9', 'INC5', 'INC9'])
-            else:
-                plt.scatter(8, func(data_x), marker='x', color='k')
-                plt.legend(['LED5', 'LED9', 'INC5', 'INC9', 'data_x'])
-            plt.title(func.__name__)
-            plt.show()
-    else:
-        func = features
-        fig = plt.figure()
-        plt.scatter(range(len(data_ordre0_LED5)), func(data_ordre0_LED5), c='blue')
-        plt.scatter(range(len(data_ordre0_LED9)), func(data_ordre0_LED9), c='red')
-        plt.scatter(range(len(data_ordre0_INC5)), func(data_ordre0_INC5), c='green')
-        plt.scatter(range(len(data_ordre0_INC9)), func(data_ordre0_INC9), c='orange')
-        if data_x is None:
-            plt.legend(['LED5', 'LED9', 'INC5', 'INC9'])
-        else:
-            plt.scatter(8, func(data_x), marker='x', color='k')
-            plt.legend(['LED5', 'LED9', 'INC5', 'INC9', 'data_x'])
-            plt.title(func.__name__)
-        plt.show()
-
-
-
-def plot_feature_space(X, y, features, dims=[0, 1, 2]):
+def plot_feature_space(X, y, features_names, dims=[0, 1, 2]):
+    """
+The function plot_feature_space() takes in four arguments:
+X (the data), y (the labels for the data), k (the number of neighbors to consider).
+It displays the data in a 3D (or 2D) feature space.
+    """
     names = np.unique(y)
     colors = ['b', 'r', 'g', 'orange', 'k']
     markers = ['o', 'o', 'o', 'o', 'x']
+    global fig
 
-    if isinstance(X, np.ndarray) and X.ndim == 2 and X.shape[-1] == x.shape[-1]:
+    if isinstance(X, np.ndarray) and X.ndim == 2:  # and X.shape[-1] == x.shape[-1]:
         fig = plt.figure()
 
         if X.shape[1] == 2:
             for i, name in enumerate(names):
-                plt.scatter(X[y == name, 0], X[y == name, 1], marker=markers[i],color=colors[i])
+                plt.scatter(X[y == name, 0], X[y == name, 1], marker=markers[i], color=colors[i])
         else:
             ax = fig.add_subplot(projection='3d')
-            ax.set_zlabel(features[dims[2]].__name__)
+            ax.set_zlabel(features_names[dims[2]])
             for i, name in enumerate(names):
-                ax.scatter(X[y == name, dims[0]], X[y == name, dims[1]], X[y == name, dims[2]], marker=markers[i], color=colors[i])
+                ax.scatter(X[y == name, dims[0]], X[y == name, dims[1]], X[y == name, dims[2]], marker=markers[i],
+                           color=colors[i])
 
         plt.legend(names)
-        plt.xlabel(features[dims[0]].__name__)
-        plt.ylabel(features[dims[1]].__name__)
+        plt.xlabel(features_names[dims[0]])
+        plt.ylabel(features_names[dims[1]])
         plt.show()
     else:
         print('burp')
         return 'burp'
 
+    return fig
+
 
 def knn(X, x, y, k=2):
+    """
+This is a k-nearest neighbor classifier. It takes in four arguments:
+X (the data), x (the point to classify), y (the labels for the data), and k (the number of neighbors to consider).
+It returns the classification for x.
+    """
     dists = np.sqrt(((X - x) ** 2).sum(axis=1))
     ind = np.argsort(dists)
 
     unique, counts = np.unique(y[ind[0]], return_counts=True)
     result = unique[np.argmax(counts)]
 
-    plot_feature_space(np.vstack((X, x)), np.hstack((y, "data_X = " + result)), features)
-
-    print(result)
     return result
 
 
 data = getdata()
-data_x = data[0]
-features = [calcul_moyenne, calcul_var, calcul_conv]
+# data_x = data[0]
+features = [calcul_moyenne, calcul_var, calcul_conv, calcul_barycentre]
+features_names = [func.__name__ for func in features]
 
-plot_images()
-plot_proj()
-#plot_feature(features, data_x)
-
+# CALCUL ET MISE EN FORME DES DONNEES
 X = np.array([func(data) for func in features]).T
-x = np.array([func(data_x) for func in features]).T
-y = np.array(["LED5"] * 8 + ["LED9"] * 8 + ["INC5"] * 8 + ["INC9"] * 8)
 
+# AJOUT DE DONNEES BRUTES (euler)
+X_brut_LED = [1, 1, 1, 1, 0, 2, 1, 1, 0, 1, 0, 0, 0, 0, 2, -1]
+X_brut_INC = [1, 1, 1, 2, 0, 3, 0, 0, 1, 2, 1, 2, 3, 3, 4, 9]
+raw_data = np.concatenate([X_brut_LED, X_brut_INC])
+raw_data = raw_data[:, np.newaxis]
+features_names.append('euler')
+
+# AJOUT DE DONNEES BRUTES (TF)
+X_brut_LED = [19.0, 19.0, 21.0, 17.0, 17.0, 19.0, 17.0, 15.0, 17.0, 21.0, 19.0, 17.0, 17.0, 15.0, 19.0, 19.0]
+X_brut_INC = [9.0, 15.0, 9.0, 11.0, 15.0, 7.0, 11.0, 11.0, 11.0, 15.0, 9.0, 11.0, 11.0, 8.0, 13.0, 9.0]
+raw_data = np.concatenate([X_brut_LED, X_brut_INC])
+raw_data = raw_data[:, np.newaxis]
+features_names.append('largeur spectre')
+X = np.append(X, raw_data, axis=1)
+
+# AJOUT DE DONNEES BRUTES (TF2)
+X_brut_LED = [246.0, 255.0, 252.0, 249.0, 241.0, 252.0, 258.0, 259.0, 248.5, 233.0, 246.0, 249.0, 241.0, 264.0, 259.0,
+              267.0]
+X_brut_INC = [190.0, 192.0, 179.0, 182.0, 175.0, 182.0, 182.0, 177.0, 187.0, 178.0, 179.0, 175.0, 185.5, 181.0, 184.0,
+              178.0]
+raw_data = np.concatenate([X_brut_LED, X_brut_INC])
+raw_data = raw_data[:, np.newaxis]
+features_names.append('largeur spectre bis')
+X = np.append(X, raw_data, axis=1)
+
+# CREATION DES LABELS
+y = np.array(["LED5"] * 8 + ["LED9"] * 8 + ["INC5"] * 8 + ["INC9"] * 8)
+# y = y np.concatenate([y, ""])
+
+# NORMALISATION DES DONNEES
 X_norm = 1 / X.max(axis=0)
 X = X * X_norm
-x = x * X_norm
 
-#plot_feature_space(np.vstack((X, x)), np.hstack((y, ["data_x"])), features)
+# PRESENTATION DES DONNEES
+plot_images()
+plot_proj()
+# plot_feature_space(np.append(X, raw_data, axis=1), y, features_names, [3, 4, 5])
 
-result = knn(X, x, y, k=5)
+# CLASSIFICATION PAR K-NN
+# x = np.array([func(data_x) for func in features]).T
+# x = X * X_norm
+x = X[0]
+k = 5
+result = knn(X, x, y, k)
+
+# AFFICHAGE DES RESULTATS
+plot_feature_space(np.vstack((X, x)), np.hstack((y, "data_X")), features_names)
+plt.suptitle("k-NN classification (k=" + str(k) + ")", fontsize=16)
+plt.title("data_x = " + result, fontsize=12)
