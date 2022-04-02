@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 # from skimage import feature
 # from sklearn.neighbors import KNeighborsClassifier
 
-from mahotas import euler
+# from mahotas import euler
 from skimage.io import imread, imread_collection, concatenate_images
 from skimage.color import rgb2gray
 
