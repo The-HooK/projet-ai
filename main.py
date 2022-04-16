@@ -202,7 +202,7 @@ def plot_features_1D(X, y, features_names):
     if not isinstance(features_names, list):
         features_names = [features_names]
     if len(features_names) != X.shape[1]:
-        print("youpsii ! error in plot_features_1D")
+        print("youpsiii ! error in plot_features_1D")
         return 'burp'
     plt.figure()
     for i, name in enumerate(features_names):
