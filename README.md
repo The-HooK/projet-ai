@@ -1,2 +1,2 @@
-# Projet Machine Learning
-## Classification d’images par ML
+# Projet - Classification d’images par Machine Learning
+Dans ce mini-projet de classification d’images par machine learning, nous allons nous essayer à la création de features qui serviront à la machine pour différencier une image d’un 5 de celle d’un 9. Les images que nous allons utiliser pour notre projet ont été acquises par le spectro-imageur conçu par l’entreprise française Carbon Bee. Nous disposons d’images éclairés par deux sources différentes pour pouvoir explorer la dimension spectrale des images.
