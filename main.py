@@ -1,9 +1,8 @@
 import numpy as np
 import matplotlib.pyplot as plt
-import plotly.graph_objects as go
 
 # from skimage import feature
-# from sklearn.neighbors import KNeighborsClassifier
+from sklearn.neighbors import KNeighborsClassifier
 
 from mahotas import euler
 from skimage.io import imread, imread_collection, concatenate_images
@@ -49,62 +48,61 @@ def crop(image):
         return image[510:630, 770:890]
 
 
-def calcul_moyenne(image):
-    if isinstance(image, list):
-        return [np.mean(img) for img in image]
+def calcul_moyenne(images):
+    if not isinstance(images, list):
+        images = [images]
+    return [np.mean(img) for img in images]
+
+
+def calcul_var(images):
+    if isinstance(images, list):
+        return [np.var(calcul_projection(img)) for img in images]
     else:
-        return np.mean(image)
+        return np.var(calcul_projection(images))
 
 
-def calcul_var(image):
-    if isinstance(image, list):
-        return [np.var(calcul_projection(img)) for img in image]
+def calcul_cov(images):
+    if isinstance(images, list):
+        return [np.cov(calcul_projection(img), calcul_projection(img.T))[1, 0] for img in images]
     else:
-        return np.var(calcul_projection(image))
+        return np.cov(calcul_projection(images), calcul_projection(images.T))[1, 0]
 
 
-def calcul_cov(image):
-    if isinstance(image, list):
-        return [np.cov(calcul_projection(img), calcul_projection(img.T))[1, 0] for img in image]
+def calcul_conv(images):
+    if isinstance(images, list):
+        return [sum(calcul_projection(img) * calcul_projection(img.T)) for img in images]
     else:
-        return np.cov(calcul_projection(image), calcul_projection(image.T))[1, 0]
+        return sum(calcul_projection(images) * calcul_projection(images.T))
 
 
-def calcul_conv(image):
-    if isinstance(image, list):
-        return [sum(calcul_projection(img) * calcul_projection(img.T)) for img in image]
+def calcul_projection(images):
+    if isinstance(images, list):
+        return [sum(img) for img in images]
     else:
-        return sum(calcul_projection(image) * calcul_projection(image.T))
+        return sum(images)
 
 
-def calcul_projection(image):
-    if isinstance(image, list):
-        return [sum(img) for img in image]
+def calcul_euler(images):
+    if isinstance(images, list):
+        return [euler(img >= 0.5) for img in images]
     else:
-        return sum(image)
+        return euler(images >= 0.5)
 
 
-def calcul_euler(image):
-    if isinstance(image, list):
-        return [euler(img>=0.5) for img in image]
-    else:
-        return euler(image>=0.5)
-
-
-def calcul_barycentre(image):
-    proj = calcul_projection(image)
-    if isinstance(image, list):
+def calcul_barycentre(images):
+    proj = calcul_projection(images)
+    if isinstance(images, list):
         return [sum(range(len(p)) * p) / len(p) / np.sum(p) for p in proj]
     else:
         return sum(range(len(proj)) * proj) / len(proj)
 
 
-def calcul_barycentre_T(image):
-    if isinstance(image, list):
-        proj = calcul_projection([img.T for img in image])
+def calcul_barycentre_T(images):
+    if isinstance(images, list):
+        proj = calcul_projection([img.T for img in images])
         return [sum(range(len(p)) * p) / len(p) / np.sum(p) for p in proj]
     else:
-        proj = calcul_projection(image)
+        proj = calcul_projection(images)
         return sum(range(len(proj)) * proj) / len(proj)
 
 
@@ -217,7 +215,25 @@ def plot_features_1D(X, y, features_names):
     plt.show()
 
 
-def knn(X, x, y, k=2):
+def knn(X, query_points, y, k=2):
+    """
+This is a k-nearest neighbor classifier. It takes in four arguments:
+X (the data), x (the point to classify), y (the labels for the data), and k (the number of neighbors to consider).
+It returns the classification for x.
+    """
+    results = []
+    if query_points.ndim == 1:
+        query_points = query_points.reshape(1, X.shape[1])
+    for i in range(query_points.shape[0]):
+        x = query_points[i]
+        dists = np.sqrt(((X - x) ** 2).sum(axis=1))
+        ind = np.argsort(dists)
+        unique, counts = np.unique(y[ind[1:(k+1)]], return_counts=True)
+        results.append(unique[np.argmax(counts)])
+    return results
+
+
+def knn_bis(X, x, y, k=2):
     """
 This is a k-nearest neighbor classifier. It takes in four arguments:
 X (the data), x (the point to classify), y (the labels for the data), and k (the number of neighbors to consider).
@@ -228,7 +244,7 @@ It returns the classification for x.
 
     unique, counts = np.unique(y[ind[0]], return_counts=True)
 
-    return unique[np.argmax(counts)]
+    return y[ind]
 
 
 data = getdata()
@@ -283,11 +299,17 @@ plot_proj()
 # x = np.array([func(data_x) for func in features]).T
 # x = X * X_norm
 x = X[0]
-k = 5
-result = knn(X, x, y, k)
+n_neighbors = 5
+result = knn(X, x, y, n_neighbors)
+results = knn(X, X, y, n_neighbors)
+#results = knn_bis(X, x, y, n_neighbors)
+
+clf = KNeighborsClassifier(n_neighbors, weights='uniform')
+clf.fit(X, y)
+Z = clf.predict(X)
 
 # AFFICHAGE DES RESULTATS
 plot_features_1D(X, y, features_names)
 plot_feature_space(np.vstack((X, x)), np.hstack((y, "data_X")), features_names, dimensions)
-plt.suptitle("k-NN classification (k=" + str(k) + ")", fontsize=16)
-plt.title("data_x = " + result, fontsize=12)
+plt.suptitle("k-NN classification (k=" + str(n_neighbors) + ")", fontsize=16)
+plt.title("data_x = " + result[0], fontsize=12)
