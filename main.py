@@ -61,6 +61,13 @@ def calcul_var(images):
         return np.var(calcul_projection(images))
 
 
+def calcul_var_T(images):
+    if isinstance(images, list):
+        return [np.var(calcul_projection(img.T)) for img in images]
+    else:
+        return np.var(calcul_projection(images.T))
+
+
 def calcul_cov(images):
     if isinstance(images, list):
         return [np.cov(calcul_projection(img), calcul_projection(img.T))[1, 0] for img in images]
@@ -249,7 +256,7 @@ It returns the classification for x.
 
 data = getdata()
 # data_x = data[0]
-features = [calcul_moyenne, calcul_var, calcul_conv, calcul_barycentre, calcul_barycentre_T, calcul_euler]
+features = [calcul_moyenne, calcul_var, calcul_var_T, calcul_conv, calcul_barycentre, calcul_barycentre_T, calcul_euler]
 features_names = [func.__name__ for func in features]
 dimensions = [3, 4, 5]
 
@@ -309,7 +316,7 @@ clf.fit(X, y)
 Z = clf.predict(X)
 
 # AFFICHAGE DES RESULTATS
-plot_features_1D(X, y, features_names)
+#plot_features_1D(X, y, features_names)
 plot_feature_space(np.vstack((X, x)), np.hstack((y, "data_X")), features_names, dimensions)
 plt.suptitle("k-NN classification (k=" + str(n_neighbors) + ")", fontsize=16)
 plt.title("data_x = " + result[0], fontsize=12)
