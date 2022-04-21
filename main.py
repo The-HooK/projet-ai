@@ -211,7 +211,7 @@ def plot_features_1D(X, y, features_names):
         return 'burp'
     plt.figure()
     for i, name in enumerate(features_names):
-        plt.subplot(X.shape[1]*100 + 11 + i)
+        plt.subplot(X.shape[1], 1, i+1)
         plt.hlines(1, 0, 1)  # Draw a horizontal line
         plt.eventplot(X[0:7, i], orientation='horizontal', colors='b')
         plt.eventplot(X[8:15, i], orientation='horizontal', colors='r')
@@ -316,7 +316,7 @@ clf.fit(X, y)
 Z = clf.predict(X)
 
 # AFFICHAGE DES RESULTATS
-#plot_features_1D(X, y, features_names)
+plot_features_1D(X, y, features_names)
 plot_feature_space(np.vstack((X, x)), np.hstack((y, "data_X")), features_names, dimensions)
 plt.suptitle("k-NN classification (k=" + str(n_neighbors) + ")", fontsize=16)
 plt.title("data_x = " + result[0], fontsize=12)
