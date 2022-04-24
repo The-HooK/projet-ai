@@ -316,10 +316,6 @@ It returns the classification for x.
 data = getdata()
 # data_x = data[0]
 
-
-features_all = [calcul_moyenne, calcul_var, calcul_var_T, calcul_cov, calcul_euler, calcul_barycentre,
-            calcul_barycentre_T, calcul_width_TF]
-
 features = [calcul_moyenne, calcul_var, calcul_var_T, calcul_euler, calcul_barycentre,
             calcul_barycentre_T, calcul_width_TF]
 features_names = [func.__name__ for func in features]
