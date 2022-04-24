@@ -1,14 +1,14 @@
 import numpy as np
+from scipy import fft
 import matplotlib.pyplot as plt
-
-# from skimage import feature
 from sklearn.neighbors import KNeighborsClassifier
-
 from mahotas import euler
-from skimage.io import imread, imread_collection, concatenate_images
+from skimage.io import imread
 from skimage.color import rgb2gray
 
 
+
+#OUTILS ///////////////////////////////////////////////////////////////////////////////////////////////////////////////
 def getdata():
     # global data_LED5
     # global data_LED9
@@ -35,6 +35,8 @@ def getdata():
 
     data_ordre0_LED5 = data_LED5
     data_ordre0_LED9 = data_LED9
+    data_ordre0_INC5 = [np.pad(data[:66,:66], pad_width=27, constant_values=0) for data in data_INC5]
+    data_ordre0_INC9 = [np.pad(data[:66,:66], pad_width=27, constant_values=0) for data in data_INC9]
     data_ordre0_INC5 = [data[:66, :66] for data in data_INC5]
     data_ordre0_INC9 = [data[:66, :66] for data in data_INC9]
 
@@ -48,10 +50,30 @@ def crop(image):
         return image[510:630, 770:890]
 
 
+def calcul_projection(images):
+    if isinstance(images, list):
+        return [sum(img) for img in images]
+    else:
+        return sum(images)
+
+
+#FEATURES /////////////////////////////////////////////////////////////////////////////////////////////////////////////
 def calcul_moyenne(images):
     if not isinstance(images, list):
         images = [images]
     return [np.mean(img) for img in images]
+
+
+def calcul_conv5(images):
+    if not isinstance(images, list):
+        images = [images]
+    return [np.sum(img*data_ordre0_LED5) for img in images]
+
+
+def calcul_conv9(images):
+    if not isinstance(images, list):
+        images = [images]
+    return [np.sum(img*data_ordre0_LED9) for img in images]
 
 
 def calcul_var(images):
@@ -82,13 +104,6 @@ def calcul_conv(images):
         return sum(calcul_projection(images) * calcul_projection(images.T))
 
 
-def calcul_projection(images):
-    if isinstance(images, list):
-        return [sum(img) for img in images]
-    else:
-        return sum(images)
-
-
 def calcul_euler(images):
     if isinstance(images, list):
         return [euler(img >= 0.5) for img in images]
@@ -113,6 +128,62 @@ def calcul_barycentre_T(images):
         return sum(range(len(proj)) * proj) / len(proj)
 
 
+def calcul_width_TF(liste_images, ratio = 2/3):
+    """
+    fct permettant de calculer la taille de la tache centrale de la tf d'une image
+    (on calcule la TF, puis on regarde seulement la ligne du centre
+    et on s'interesse a la premiere fois (en partant du centre) ou la valeur du module chute d'une certaine valeurs
+
+    input : liste d'images. ATTENTION SI IMAGE SEULE IL FAUT LA METTRE DANS UNE LISTE QD MEME !
+            ratio : ratio par rapport auquel on calcule l'epaisseur de la courbe: conseil : 2/3 pour img entiere
+                                                                                            6/7 pour img crop0
+    output : liste des taille des TF des images entrées
+    """
+
+    #liste_images = [cv2.cvtColor(img, cv2.COLOR_BGR2GRAY) for img in liste_images]
+    results = []
+
+    center = int(len(liste_images[0])/2)#indice centre, en gnl nbr entier, ie ligne centrales sont : center et center +1
+
+    for image in liste_images:  #on applique le calcul sur chaque image d'une liste directement dans la fct
+        TF = np.log(abs(fft.fftshift(fft.fft2(image)))) #transformee de Fourier de l'image
+        TF = TF[center-49:center+51,:] #on s'intéresse à la taille de la tache centrale, on prend des lignes au centre
+        TF = [np.mean(TF[:,i]) for i in range(len(TF[0]))]  #moyenne des 100 lignes choisies pour limiter bruit
+
+        #plt.figure()
+        #plt.plot(TF)         #(to be used for visual undersanding)
+        #plt.show()
+
+        #maintenant, il s'agit de mesurer la taille de la tache on prendre la taille non pas à mi-hauteur mais à 2/3
+        max = np.max(TF)
+        y = max*ratio #hauteur à laquelle on va mesurer l'épaisseur de la TF
+
+        index_max = TF.index(max)
+        TF = [TF[:index_max],TF[index_max:]] #on separe la TF en une phase de montée globale et une phase de descente
+
+        rough_mean_inter = [] #cette liste contiendra deux valeurs :
+        # les abscices d'intersection entre la courbe de la TF et la droite y = max*(2/3)
+        # pendant les phases de croissance et de décroissance de la TF
+
+        for half_TF in TF:
+            tmp = [] #cette liste va stocker toutes les intersections entre la courbe de la (demi) TF et la droite y = max*(2/3)
+            for index_x in range(len(half_TF)-1):
+                if half_TF[index_x] < y and y < half_TF[index_x + 1] or half_TF[index_x] > y and y > half_TF[index_x + 1]:
+                    milieu = 0.5*(index_x+index_x+1)
+                    tmp.append(milieu)
+            if not tmp:
+                tmp.append(len(half_TF)-1)
+            rough_mean_inter.append(0.5*(tmp[0]+tmp[-1]))
+
+        rough_mean_inter[1] += len(TF[0]) # en coupant la TF, l'axe x est faussé sur la seconde moitié,
+                                          # le centre devient l'indice 0 donc il faut ajouter le décalage
+
+
+        results.append(rough_mean_inter[1]-rough_mean_inter[0])
+    return results
+
+
+# AFFICHAGE ///////////////////////////////////////////////////////////////////////////////////////////////////////////
 def plot_images():
     # album_LED5 = np.concatenate(np.array([data_ordre0_LED5]).reshape((4,2)))
     names = ['LED5', 'LED9', 'INC5', 'INC9']
@@ -177,13 +248,14 @@ It displays the data in a 3D (or 2D) feature space.
     names = np.unique(y)
     colors = ['b', 'r', 'g', 'orange', 'k']
     markers = ['o', 'o', 'o', 'o', 'x']
-    global fig
 
     if isinstance(X, np.ndarray) and X.ndim == 2:  # and X.shape[-1] == x.shape[-1]:
         fig = plt.figure()
 
         if X.shape[1] == 2:
             for i, name in enumerate(names):
+                dims = [0, 1]
+                plt.grid(True, alpha=0.75)
                 plt.scatter(X[y == name, 0], X[y == name, 1], marker=markers[i], color=colors[i])
         else:
             ax = fig.add_subplot(projection='3d')
@@ -213,15 +285,16 @@ def plot_features_1D(X, y, features_names):
     for i, name in enumerate(features_names):
         plt.subplot(X.shape[1], 1, i+1)
         plt.hlines(1, 0, 1)  # Draw a horizontal line
-        plt.eventplot(X[0:7, i], orientation='horizontal', colors='b')
-        plt.eventplot(X[8:15, i], orientation='horizontal', colors='r')
-        plt.eventplot(X[16:23, i], orientation='horizontal', colors='g')
-        plt.eventplot(X[24:31, i], orientation='horizontal', colors='orange')
+        plt.eventplot(X[0:8, i], orientation='horizontal', colors='b')
+        plt.eventplot(X[8:16, i], orientation='horizontal', colors='r')
+        plt.eventplot(X[16:24, i], orientation='horizontal', colors='g')
+        plt.eventplot(X[24:32, i], orientation='horizontal', colors='orange')
         plt.title(name)
         plt.axis('off')
     plt.show()
 
 
+# MODELE //////////////////////////////////////////////////////////////////////////////////////////////////////////////
 def knn(X, query_points, y, k=2):
     """
 This is a k-nearest neighbor classifier. It takes in four arguments:
@@ -240,54 +313,22 @@ It returns the classification for x.
     return results
 
 
-def knn_bis(X, x, y, k=2):
-    """
-This is a k-nearest neighbor classifier. It takes in four arguments:
-X (the data), x (the point to classify), y (the labels for the data), and k (the number of neighbors to consider).
-It returns the classification for x.
-    """
-    dists = np.sqrt(((X - x) ** 2).sum(axis=1))
-    ind = np.argsort(dists)
-
-    unique, counts = np.unique(y[ind[0]], return_counts=True)
-
-    return y[ind]
-
-
 data = getdata()
 # data_x = data[0]
-features = [calcul_moyenne, calcul_var, calcul_var_T, calcul_conv, calcul_barycentre, calcul_barycentre_T, calcul_euler]
+
+
+features_all = [calcul_moyenne, calcul_var, calcul_var_T, calcul_cov, calcul_euler, calcul_barycentre,
+            calcul_barycentre_T, calcul_width_TF]
+
+features = [calcul_moyenne, calcul_var, calcul_var_T, calcul_euler, calcul_barycentre,
+            calcul_barycentre_T, calcul_width_TF]
 features_names = [func.__name__ for func in features]
 dimensions = [3, 4, 5]
 
 # CALCUL ET MISE EN FORME DES DONNEES
 X = np.array([func(data) for func in features]).T
 
-# AJOUT DE DONNEES BRUTES (euler)
-X_brut_LED = [1, 1, 1, 1, 0, 2, 1, 1, 0, 1, 0, 0, 0, 0, 2, -1]
-X_brut_INC = [1, 1, 1, 2, 0, 3, 0, 0, 1, 2, 1, 2, 3, 3, 4, 9]
-raw_data = np.concatenate([X_brut_LED, X_brut_INC])
-raw_data = raw_data[:, np.newaxis]
-features_names.append('euler')
-X = np.append(X, raw_data, axis=1)
 
-# AJOUT DE DONNEES BRUTES (TF)
-X_brut_LED = [19.0, 19.0, 21.0, 17.0, 17.0, 19.0, 17.0, 15.0, 17.0, 21.0, 19.0, 17.0, 17.0, 15.0, 19.0, 19.0]
-X_brut_INC = [9.0, 15.0, 9.0, 11.0, 15.0, 7.0, 11.0, 11.0, 11.0, 15.0, 9.0, 11.0, 11.0, 8.0, 13.0, 9.0]
-raw_data = np.concatenate([X_brut_LED, X_brut_INC])
-raw_data = raw_data[:, np.newaxis]
-features_names.append('largeur spectre')
-X = np.append(X, raw_data, axis=1)
-
-# AJOUT DE DONNEES BRUTES (TF2)
-X_brut_LED = [246.0, 255.0, 252.0, 249.0, 241.0, 252.0, 258.0, 259.0, 248.5, 233.0, 246.0, 249.0, 241.0, 264.0, 259.0,
-              267.0]
-X_brut_INC = [190.0, 192.0, 179.0, 182.0, 175.0, 182.0, 182.0, 177.0, 187.0, 178.0, 179.0, 175.0, 185.5, 181.0, 184.0,
-              178.0]
-raw_data = np.concatenate([X_brut_LED, X_brut_INC])
-raw_data = raw_data[:, np.newaxis]
-features_names.append('largeur spectre bis')
-X = np.append(X, raw_data, axis=1)
 
 # CREATION DES LABELS
 y = np.array(["LED5"] * 8 + ["LED9"] * 8 + ["INC5"] * 8 + ["INC9"] * 8)
@@ -309,7 +350,7 @@ x = X[0]
 n_neighbors = 5
 result = knn(X, x, y, n_neighbors)
 results = knn(X, X, y, n_neighbors)
-#results = knn_bis(X, x, y, n_neighbors)
+
 
 clf = KNeighborsClassifier(n_neighbors, weights='uniform')
 clf.fit(X, y)
@@ -317,6 +358,8 @@ Z = clf.predict(X)
 
 # AFFICHAGE DES RESULTATS
 plot_features_1D(X, y, features_names)
-plot_feature_space(np.vstack((X, x)), np.hstack((y, "data_X")), features_names, dimensions)
-plt.suptitle("k-NN classification (k=" + str(n_neighbors) + ")", fontsize=16)
-plt.title("data_x = " + result[0], fontsize=12)
+#plot_feature_space(np.vstack((X, x)), np.hstack((y, "data_X")), features_names, dimensions)
+#plt.suptitle("k-NN classification (k=" + str(n_neighbors) + ")", fontsize=16)
+#plt.title("data_x = " + result[0], fontsize=12)
+
+print(sum(results==y)/0.32)
